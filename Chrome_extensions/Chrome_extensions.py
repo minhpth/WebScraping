@@ -3,21 +3,21 @@
 from __future__ import print_function, division
 
 """
-Created on Sat Apr 29 10:34:48 2017
+Created on Sat Apr 29 17:34:27 2017
 
 @author: minh
 """
 
 #------------------------------------------------------------------------------
-# WEB SCRAPPING - UPWORK PROJECT - FIREFOX EXTENSIONS PAGE
+# WEB SCRAPPING - UPWORK PROJECT - CHROME EXTENSION PAGE
 #------------------------------------------------------------------------------
 
 """
-This project will go to Firefox extension website, make a extensions search with
+This project will go to Chrome extension website, make a extensions search with
 a search term (e.g. Youtube, Facebook, etc.), then extract some extensions'
 information (details are in below).
 
-Firefox extension URL: https://addons.mozilla.org/en-US/firefox/extensions/
+Chrome extension URL: https://chrome.google.com/webstore/category/extensions
 
 Things to do:
 
@@ -45,6 +45,17 @@ import pandas as pd
 from bs4 import BeautifulSoup # Web scrapping
 import urllib2
 from urllib2 import urlopen # Download link
+
+# If selenium does not run, do these things:
+# (1) Downgrade it: pip install selenium==2.53.6
+# (2) Downgrade Firefox to version 46
+from selenium import webdriver as web # Open a web browser
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait as wait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException, StaleElementReferenceException
+from selenium.webdriver.common.keys import Keys
 
 # Other packages
 import os
@@ -99,51 +110,73 @@ def BeautifulSoup_wrapper(url, num_retry=3, delay=5):
     print('Failed to extract HTML structure...')
     return None
 
-def extract_addonsList(soup):
+def click_wrapper(object_click, num_retry=5, delay=5):    
     """
-    This function will extract all the name and link of Firefox extensions
-    Input: an BeautifulSoup object of the first extension page
-    Output: data frame contain addons' names and links
-    
-    Note: the number of extension pages can be different on different OS system
+    Function to simulate a click, try several times if cannot click
     """
     
-    # Extract all extensions' names and links
-    pageCount = 0
-    addonNameList = []
-    addonLinkList = []
-        
+    count_retry = 0
+    while  count_retry < num_retry:
+        try:
+            object_click.click()
+            #print('Click successful!')
+            return True
+            
+        except:
+            print('Click failed. Retrying...')
+            count_retry += 1
+            sleep(delay)
+    
+    return False
+
+def extract_addonList(driver):
+    """
+    This function will extract all addons' names and urls. Chrome extensions
+    page shows all addons in 1 page, but only show next addons when scrolling
+    to the end of the page. This script also stimulates the scrolling action
+    to get full list of addons.
+    """
+
+    # Try to scroll until the end of page, then wait for page load
+    addonCount = 0
+    
     while True:
-        
-        # Extract all extensions' names and links of a page
-        itemAddonList = soup.findAll('div', attrs={'class':'item addon'}) # This search will include "item addon incompatible"
-        
-        for item in itemAddonList:
-            #print(item.div.h3.a.text)
-            addonNameList.append(item.div.h3.a.text.strip())
-            addonLinkList.append(Firefox_addonPage + item.div.h3.a.get('href')) # Can remove term '/?src=search' if needed
-        
-        # Print out to track
-        pageCount += 1
-        print('Page', pageCount, '|', len(itemAddonList), 'items extracted')
-        
-        # Look for Next button
-        nextButton = soup.find('a', attrs={'class':'button next'})
-        
-        if nextButton is not None: # Go to next page
-            nextUrl = Firefox_addonPage + nextButton.get('href')
-            soup = BeautifulSoup_wrapper(nextUrl)
-        else: # Stop the while loop
-            break
-        
-    # Construct the data frame results
-    addonTb = pd.DataFrame({'addon_name':pd.Series(addonNameList),
-                            'addon_url':pd.Series(addonLinkList)},
-                            columns=['addon_name', 'addon_url'])
     
-    # Remove duplicated information, in some website, next page can show some
-    # items from previous pages
-    addonTb = addonTb.drop_duplicates().reset_index(drop=True)
+        # Wait for the page to finish loading, then extract all addons' names and links
+        loadingCircle = driver.find_element_by_css_selector('.h-a-Kd.a-Hd-mb')
+        if loadingCircle.is_displayed():
+            wait(driver, 30).until(EC.invisibility_of_element_located((By.CSS_SELECTOR, '.h-a-Kd.a-Hd-mb')))
+        
+        addonItemList = driver.find_elements_by_css_selector('.h-Ja-d-Ac.a-u')
+    
+        # Scroll to last addon item
+        if len(addonItemList) > 0:
+            lastAddon = addonItemList[-1]
+            driver.execute_script("return arguments[0].scrollIntoView();", lastAddon)
+            #sleep(3) # Wait for the page to load
+        
+        # Click on "See other results" if any
+        seeOther = driver.find_element_by_css_selector('.h-a-Hd-mb.a-Hd-mb')
+        if seeOther.is_displayed(): click_wrapper(seeOther)
+        
+        # Check condition to exit the while loop
+        if len(addonItemList) > addonCount:
+            addonCount = len(addonItemList) # Update count
+        else:
+            break # End while loop
+    
+    # Loop through all addons, extract names and urls
+    addonNameList = []
+    addonURLList = []
+    
+    for addonItem in addonItemList:
+        addonNameList.append(addonItem.find_element_by_css_selector('.a-na-d-w').text.strip())
+        addonURLList.append(addonItem.get_attribute('href'))
+    
+    # Construct result table
+    addonTb = pd.DataFrame({'addon_name':pd.Series(addonNameList),
+                            'addon_url':pd.Series(addonURLList)},
+                            columns=['addon_name', 'addon_url'])
     
     return addonTb
 
@@ -154,11 +187,11 @@ def extract_activeUser(addonSoup):
     """
     
     try:
-        activeUser = int(re.sub('[^0-9]', '', addonSoup.find('div', attrs={'id':'daily-users'}).text.strip()))
+        activeUser = int(re.sub('[^0-9]', '', addonSoup.find('span', attrs={'class':'e-f-ih'}).text.strip()))
         return activeUser
     except:
         return 0
-    
+
 def extract_size(addonSoup):
     """
     This function will return the size of the addon in addon page. The size number
@@ -167,20 +200,19 @@ def extract_size(addonSoup):
     """
     
     try:
-        size = addonSoup.find('span', attrs={'class':'filesize'}).text.strip()
+        size = addonSoup.find('span', attrs={'class':'C-b-p-D-Xe h-C-b-p-D-za'}).text.strip()
         return size
     except:
         return ''
-    
+        
 def extract_version(addonSoup):
     """
-    This function will return the version of the addon in addon page. The result
-    will be a text begin with "Version" + version number.
-    If it cannot find that text, it will return and blank string.
+    This function will return the version of the addon in addon page (string).
+    If it cannot find that version number, it will return and blank string.
     """
     
     try:
-        version = addonSoup.find('div', attrs={'class':'version item'}).div.h3.a.text.strip()
+        version = addonSoup.find('span', attrs={'class':'C-b-p-D-Xe h-C-b-p-D-md'}).text.strip()
         return version
     except:
         return ''
@@ -193,12 +225,11 @@ def extract_releaseDate(addonSoup):
     """
     
     try:
-        versionItem = addonSoup.find('div', attrs={'class':'version item'})
-        releaseDate = versionItem.find('span', attrs={'class':'meta'}).time.get('datetime')
+        releaseDate = addonSoup.find('span', attrs={'class':'C-b-p-D-Xe h-C-b-p-D-xh-hh'}).text.strip()
         return releaseDate
     except:
         return ''
-
+        
 def extract_numberReview(addonSoup):
     """
     This function will return the number of users giving rates to this addon.
@@ -206,11 +237,11 @@ def extract_numberReview(addonSoup):
     """
     
     try:
-        numberReview = int(re.sub('[^0-9]', '', addonSoup.find('span',  attrs={'itemprop':'ratingCount'}).text.strip()))
+        numberReview = int(re.sub('[^0-9]', '', addonSoup.find('span',  attrs={'class':'q-N-nd'}).text.strip()))
         return numberReview
     except:
         return 0
-
+    
 def extract_avgRating(addonSoup):
     """
     This function will return the average rating of this addon.
@@ -218,7 +249,7 @@ def extract_avgRating(addonSoup):
     """
     
     try:
-        avgRating = float(addonSoup.find('meta', attrs={'itemprop':'ratingValue'}).get('content'))
+        avgRating = float(addonSoup.find('div', attrs={'class':'rsw-stars'}).get('g:rating_override'))
         return avgRating
     except:
         return 0.0
@@ -228,38 +259,33 @@ def extract_authorInfo(addonSoup):
     This function will extract all information of the author if possible.
     """
     
-    def extract_authorName(authorSoup):
+    def extract_authorName(addonSoup):
         """
         This function will return the author name from the author extension page.
         If it cannot find that name, it will return a blank string.
         """
         
         try:
-            authorTb = authorSoup.find('table', attrs={'class':'person-info'}) # Get the table of information
-            authorName = authorTb.find(text='Name').next.next.text.strip()
+            authorName = addonSoup.find('a', attrs={'class':'e-f-y'}).text.strip()
             return authorName
         except:
             return ''
         
-    def extract_authorHomepage(authorSoup):
+    def extract_authorHomepage(addonSoup):
         """
         This function will return the home page of author from the author extension page.
         If it cannot find that page url, it will return a blank string.
         """
         
         try:
-            authorTb = authorSoup.find('table', attrs={'class':'person-info'}) # Get the table of information
-            authorHomepage = authorTb.find(text='Homepage').next.next.text.strip()
+            authorHomepage = addonSoup.find('a', attrs={'class':'e-f-y'}).get('href')
             return authorHomepage
         except:
             return ''
     
-    # Get the extension URL of the author of the current extension page
-    authorURL = Firefox_addonPage + addonSoup.find(attrs={'class':'author'}).a.get('href')
-    authorSoup = BeautifulSoup_wrapper(authorURL)
-
-    authorName = extract_authorName(authorSoup)
-    authorHomepage = extract_authorHomepage(authorSoup)
+    # Get the extension URL of the author
+    authorName = extract_authorName(addonSoup)
+    authorHomepage = extract_authorHomepage(addonSoup)
     
     return authorName, authorHomepage
 
@@ -332,7 +358,7 @@ def extract_allAddonInfo(addonTb):
     # Loop through all extension page
     addonCount = 0
     for index, row in addonTb.iterrows():
-        
+    
         addonName, addonURL = row[0], row[1]
         addonCount += 1
         print('Extension', str(addonCount) + '/' + str(addonTb.shape[0]), ':', addonName)
@@ -375,35 +401,39 @@ def update_errorLog(text):
 
 if __name__ == '__main__':
     
-    # Change path to working directory
-    os.chdir(os.path.join('/', 'home', 'minh', 'Python', 'WebScrapping', 'Firefox_extensions'))
-
+    # Change os directory
+    #os.chdir(os.path.join('/', 'home', 'minh', 'Python', 'WebScrapping', 'Chrome_extensions'))
+    
     #--------------------------------------------------------------------------    
     # STEP 1. INITIATE CONNECTION
     #--------------------------------------------------------------------------
     
     print("Step 1. Connect to the extension page")
     
-    # Search term identify and global variables (DO NOT change the vars' names)
-    # In the future, this can be upgraded to auto-matic create a url text
-    searchTerm = 'pdf' # sys.argv[1] # 'youtube'
-    Firefox_addonPage = "https://addons.mozilla.org"
-    Firefox_searchURL = "https://addons.mozilla.org/en-US/firefox/search/?q="
+    # Define the search term and global variables (DO NOT change the vars' names)
+    searchTerm = sys.argv[1] # '12345678'
+    url = "https://chrome.google.com/webstore/search/" + searchTerm + "?_category=extensions"
     
-    # Try to open the page and extract the HTML structure
-    url = Firefox_searchURL + searchTerm
-    soup = BeautifulSoup_wrapper(url)
+    # Open a web browser with the given url
+    driver = web.Firefox()
+    driver.set_window_position(0, 0) # Move windows to the top-left corner
+    driver.set_window_size(600, 400) # Resize Firefox windows
+    driver.get(url)
     
+    # Wait a bit for the page to load (find the first addon item block)
+    wait(driver, 10).until(lambda driver: driver.find_element_by_css_selector('.h-Ja-d-Ac.a-u'))
+
     #--------------------------------------------------------------------------
     # STEP 2. EXTRACT ADDONS' NAMES AND LINKS
     #--------------------------------------------------------------------------
     
     print("Step 2. Extract all addons' names and links")
     
-    addonTb = extract_addonsList(soup)
-    addonTb['extension_page'] = 'Firefox'
-    fileOut = 'output/' + searchTerm + '_Firefox_addonList.csv'
+    addonTb = extract_addonList(driver)
+    addonTb['extension_page'] = 'Chrome'
+    fileOut = 'output/' + searchTerm + '_Chrome_addonList.csv'
     addonTb.to_csv(fileOut, index=False, encoding='utf-8')
+    driver.quit() # Close browser, no longer need to use selenium
     
     #--------------------------------------------------------------------------
     # STEP 3. GO TO EACH ADDON PAGE, EXTRACT INFORMATION
@@ -412,19 +442,23 @@ if __name__ == '__main__':
     print('Step 3. Go to each extension page, extract their information')
     
     addonInfoTb = extract_allAddonInfo(addonTb)
-    addonInfoTb['extension_page'] = 'Firefox'
+    addonInfoTb['extension_page'] = 'Chrome'
     print('Verified:', verify(addonTb, addonInfoTb))
     
-    fileOut = 'output/' + searchTerm + '_Firefox_addonInfo.csv'
+    fileOut = 'output/' + searchTerm + '_Chrome_addonInfo.csv'
     addonInfoTb.to_csv(fileOut, index=False, encoding='utf-8')
     
     print()
-                                        
+    
 #------------------------------------------------------------------------------
 # Refs
 #------------------------------------------------------------------------------
 
 """
+http://stackoverflow.com/questions/30942041/slow-scrolling-down-the-page-using-selenium
+http://stackoverflow.com/questions/19803963/efficient-method-to-scroll-though-pages-using-selenium
+http://www.diveintopython.net/scripts_and_streams/command_line_arguments.html
+https://sqa.stackexchange.com/questions/15484/how-to-minimize-the-browser-window-which-was-launched-via-selenium-webdriver
 """
 
 #------------------------------------------------------------------------------

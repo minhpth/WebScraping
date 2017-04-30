@@ -1,0 +1,25 @@
+HOW TO SET UP TEST CASES
+
+1. Create some test cases from test_ext.sh
+
+#!/bin/sh
+python Chrome_extensions.py facebook
+python Chrome_extensions.py youtube
+python Chrome_extensions.py reader
+python Chrome_extensions.py download
+python Chrome_extensions.py pdf
+python Chrome_extensions.py word
+python Chrome_extensions.py excel
+python Chrome_extensions.py slide
+python Chrome_extensions.py mp3
+python Chrome_extensions.py news
+
+2. Make test_ext.sh runable then run it
+
+Make the test_ext.sh runable
+$ chmod +x test_ext.sh
+
+Run the file by
+./test_ext.sh
+
+Refs: http://stackoverflow.com/questions/4377109/shell-script-execute-a-python-program-from-within-a-shell-script
