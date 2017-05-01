@@ -10,7 +10,7 @@ Method 1: Selenium 2.53.6 and Firefox under version 47 (Recommended)
    export PATH=$PATH:/path/to/directory/of/executable/downloaded/in/previous/step
 
    For example:
-   export PATH=$PATH:/home/minh/Python/WebScrapping/webdriver
+   export PATH=$PATH:/home/minh/Python/WebScrping/webdriver
 
 2. If it does not work, downgrade selenium: pip install selenium==2.53.6
 
@@ -20,7 +20,10 @@ Method 1: Selenium 2.53.6 and Firefox under version 47 (Recommended)
    apt-cache show firefox | grep Version
 
    Get previous version:
-   sudo apt-get install firefox=28.0+build2-0ubuntu2
+   sudo apt-get install firefox=45.0.2+build1-0ubuntu1
+
+   Keep Firefox in current version
+   sudo apt-mark hold firefox
 
    Ref: http://fullstacktutorials.blogspot.fr/2016/06/how-to-downgrade-firefox-version-on.html
 
