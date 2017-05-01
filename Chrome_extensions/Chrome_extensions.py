@@ -24,7 +24,7 @@ Things to do:
 1. note if firefox or chrome [Done]
 2. list of all extensions titles [Done]
 3. link to extension page [Done]
-4. search rank position for given search term [__???__]
+4. search rank position for given search term [Done]
 5. numbers of active users [Done]
 6. size [Done]
 7. version [Done]
@@ -68,7 +68,7 @@ from datetime import datetime
 # Self-defined functions
 #------------------------------------------------------------------------------
 
-def urlopen_wrapper(url, num_retry=3, delay=10):
+def urlopen_wrapper(url, num_retry=5, delay=10):
     """
     Function to open a page, try several times if the page gets stuck
     """
@@ -80,16 +80,16 @@ def urlopen_wrapper(url, num_retry=3, delay=10):
             return page # If no error, end function
             
         except urllib2.URLError as e:
-            print('Page load error:', e)
-            print('Waiting and retrying...')
+            print('ERROR opening url:', e)
+            print('Retrying...')
             count_retry += 1
             sleep(delay)
     
     # If try many times but failed
-    print('Failed to load page...')
+    print('FAILED to open this url.', url)
     return None
 
-def BeautifulSoup_wrapper(url, num_retry=3, delay=5):
+def BeautifulSoup_wrapper(url, num_retry=5, delay=10):
     """
     This function will try several times to extract the HTML structure of the page
     """
@@ -102,12 +102,12 @@ def BeautifulSoup_wrapper(url, num_retry=3, delay=5):
             return soup # If no error, end function
             
         except:
-            print('Extract HTML structure error. Retrying...')
+            print('ERROR extracting HTML structure. Retrying...')
             count_retry += 1
             sleep(delay)
 
     # If try many time but failed
-    print('Failed to extract HTML structure...')
+    print('FAILED to extract HTML structure.', url)
     return None
 
 def click_wrapper(object_click, num_retry=5, delay=5):    
@@ -123,10 +123,12 @@ def click_wrapper(object_click, num_retry=5, delay=5):
             return True
             
         except:
-            print('Click failed. Retrying...')
+            print('ERROR clicking. Retrying...')
             count_retry += 1
             sleep(delay)
     
+    # If try many time but failed
+    print('FAILED to click on this object.')
     return False
 
 def extract_addonList(driver):
@@ -177,6 +179,9 @@ def extract_addonList(driver):
     addonTb = pd.DataFrame({'addon_name':pd.Series(addonNameList),
                             'addon_url':pd.Series(addonURLList)},
                             columns=['addon_name', 'addon_url'])
+    
+    # Add search_rank
+    addonTb['search_rank'] = addonTb.index + 1
     
     return addonTb
 
@@ -254,62 +259,68 @@ def extract_avgRating(addonSoup):
     except:
         return 0.0
 
-def extract_authorInfo(addonSoup):
+    
+def extract_authorName(addonSoup):
     """
-    This function will extract all information of the author if possible.
+    This function will return the author name from the author extension page.
+    If it cannot find that name, it will return a blank string.
     """
     
-    def extract_authorName(addonSoup):
-        """
-        This function will return the author name from the author extension page.
-        If it cannot find that name, it will return a blank string.
-        """
+    try:
+        authorName = addonSoup.find('a', attrs={'class':'e-f-y'}).text.strip()
+        return authorName
+    except:
+        return ''
         
-        try:
-            authorName = addonSoup.find('a', attrs={'class':'e-f-y'}).text.strip()
-            return authorName
-        except:
-            return ''
-        
-    def extract_authorHomepage(addonSoup):
-        """
-        This function will return the home page of author from the author extension page.
-        If it cannot find that page url, it will return a blank string.
-        """
-        
-        try:
-            authorHomepage = addonSoup.find('a', attrs={'class':'e-f-y'}).get('href')
-            return authorHomepage
-        except:
-            return ''
+def extract_authorHomepage(addonSoup):
+    """
+    This function will return the home page of author from the author extension page.
+    If it cannot find that page url, it will return a blank string.
+    """
     
-    # Get the extension URL of the author
-    authorName = extract_authorName(addonSoup)
-    authorHomepage = extract_authorHomepage(addonSoup)
-    
-    return authorName, authorHomepage
+    try:
+        authorHomepage = addonSoup.find('a', attrs={'class':'e-f-y'}).get('href')
+        return authorHomepage
+    except:
+        return ''
 
-def extract_addonInfo(addonName, addonURL):
+def extract_addonInfo(addonName, addonURL, searchRank):
     """
     This function extract all information of an addon page, then return data in
     a data frame.
     """
     
-    # Initiate connection to a specific addon page
-    addonSoup = BeautifulSoup_wrapper(addonURL)
+    activeUser = None
+    size = None
+    version = None
+    releaseDate = None
+    numberReview = None
+    avgRating = None
+    authorName = None
+    authorHomepage = None
     
-    # Extract addon information
-    activeUser = extract_activeUser(addonSoup) # Active (daily) users
-    size = extract_size(addonSoup) # Addon size
-    version = extract_version(addonSoup) # Addon version
-    releaseDate = extract_releaseDate(addonSoup) # Release date
-    numberReview = extract_numberReview(addonSoup) # Number of reviews
-    avgRating = extract_avgRating(addonSoup) # Average ratings
-    authorName, authorHomepage = extract_authorInfo(addonSoup) # Extrac author info
+    try:
+        # Initiate connection to a specific addon page
+        addonSoup = BeautifulSoup_wrapper(addonURL)
+        
+        # Extract addon information
+        activeUser = extract_activeUser(addonSoup) # Active (daily) users
+        size = extract_size(addonSoup) # Addon size
+        version = extract_version(addonSoup) # Addon version
+        releaseDate = extract_releaseDate(addonSoup) # Release date
+        numberReview = extract_numberReview(addonSoup) # Number of reviews
+        avgRating = extract_avgRating(addonSoup) # Average ratings
+        authorName = extract_authorName(addonSoup) # Author's name
+        authorHomepage = extract_authorHomepage(addonSoup) # Author's webpage
+        validated = True
+        
+    except:
+        validated = False
     
     # Construct result table
     addonInfo = pd.DataFrame.from_dict({'addon_name':addonName,
                                         'addon_url':addonURL,
+                                        'search_rank':searchRank,
                                         'active_user':activeUser,
                                         'size':size,
                                         'version':version,
@@ -317,17 +328,27 @@ def extract_addonInfo(addonName, addonURL):
                                         'number_review':numberReview,
                                         'rating':avgRating,
                                         'author_name':authorName,
-                                        'author_homepage':authorHomepage},
+                                        'author_homepage':authorHomepage,
+                                        'validated':validated},
                                         orient='index').T
     
     # Re-arrange columns
-    addonInfo = addonInfo[['addon_name', 'addon_url', 'active_user',
-                           'size', 'version', 'release_date', 'number_review',
-                           'rating', 'author_name', 'author_homepage']]
+    addonInfo = addonInfo[['addon_name',
+                           'addon_url',
+                           'search_rank',
+                           'active_user',
+                           'size',
+                           'version',
+                           'release_date',
+                           'number_review',
+                           'rating',
+                           'author_name',
+                           'author_homepage',
+                           'validated']]
     
     return addonInfo
 
-def extract_addonInfo_wrapper(addonName, addonURL, num_retry=3, delay=10):
+def extract_addonInfo_wrapper(addonName, addonURL, searchRank, num_retry=5, delay=10):
     """
     This function will try several times to extract the addonInfo.
     """
@@ -335,16 +356,16 @@ def extract_addonInfo_wrapper(addonName, addonURL, num_retry=3, delay=10):
     count_retry = 0
     while  count_retry < num_retry:
         try:
-            addonInfo = extract_addonInfo(addonName, addonURL)
+            addonInfo = extract_addonInfo(addonName, addonURL, searchRank)
             return addonInfo # If no error, end function
             
         except:
-            print('ERROR. Waiting and retrying...')
+            print('ERROR extracting addon info. Retrying...')
             count_retry += 1
             sleep(delay)
     
     # If try many times but failed
-    print('Failed to extract this add on information...')
+    print('FAILED to extract this addon information.', addonName, addonURL)
     return None
 
 def extract_allAddonInfo(addonTb):
@@ -358,17 +379,38 @@ def extract_allAddonInfo(addonTb):
     # Loop through all extension page
     addonCount = 0
     for index, row in addonTb.iterrows():
-    
-        addonName, addonURL = row[0], row[1]
+        
+        addonName = row['addon_name']
+        addonURL = row['addon_url']
+        searchRank = row['search_rank']
+        
         addonCount += 1
         print('Extension', str(addonCount) + '/' + str(addonTb.shape[0]), ':', addonName)
         
         # Extract addon info
-        addonInfo = extract_addonInfo_wrapper(addonName, addonURL)
+        addonInfo = extract_addonInfo_wrapper(addonName, addonURL, searchRank)
+        
         if addonInfo is not None: # Successful extract
+
             addonInfoTb = addonInfoTb.append(addonInfo, ignore_index=True)
-        else: # Failed to extract, record errors log
-            update_errorLog('SINGLE_ADDON_ERROR' + ',' + addonName + ',' + addonURL)
+        
+        else: # Failed to extract
+            
+            # Construct a table to return, verified = False
+            addonInfo = pd.DataFrame.from_dict({'addon_name':addonName,
+                                                'addon_url':addonURL,
+                                                'search_rank':searchRank,
+                                                'verified':False},
+                                                orient='index').T
+                                                
+            addonInfoTb = addonInfoTb.append(addonInfo, ignore_index=True)
+            
+            # Update error log file
+            update_errorLog('ERROR_EXTRACTING_ADDON_INFO' + ' | ' + addonName + ' | ' + addonURL)
+        
+    # Copy some columns from addonTb
+    addonInfoTb['platform'] = addonTb['platform']
+    addonInfoTb['search_term'] = addonTb['search_term']
         
     return addonInfoTb
 
@@ -380,10 +422,14 @@ def verify(addonTb, addonInfoTb):
     
     addonTb = addonTb.reset_index(drop=True)
     addonInfoTb = addonInfoTb.reset_index(drop=True)
+    colsList = ['addon_name', 'addon_url', 'search_rank', 'search_term', 'platform']
     
-    if (addonTb == addonInfoTb[['addon_name', 'addon_url', 'extension_page']]).all().all():
-        return True
-    else:
+    try:
+        if (addonTb[colsList] == addonInfoTb[colsList]).all().all():
+            return True
+        else:
+            return False
+    except:
         return False
     
 def update_errorLog(text):
@@ -392,7 +438,7 @@ def update_errorLog(text):
     """
     
     with open('log/errorsLog.txt', 'a') as f:
-        f.write(str(datetime.now()), ':', text)
+        f.write(str(datetime.now()) + ' : ' + text)
         f.write('\n')
 
 #------------------------------------------------------------------------------
@@ -404,14 +450,17 @@ if __name__ == '__main__':
     # Change os directory
     #os.chdir(os.path.join('/', 'home', 'minh', 'Python', 'WebScrapping', 'Chrome_extensions'))
     
+    # Define the search term
+    searchTerm = sys.argv[1] # '12345678'
+    print('Extension search term:', searchTerm)
+    
     #--------------------------------------------------------------------------    
     # STEP 1. INITIATE CONNECTION
     #--------------------------------------------------------------------------
     
     print("Step 1. Connect to the extension page")
     
-    # Define the search term and global variables (DO NOT change the vars' names)
-    searchTerm = sys.argv[1] # '12345678'
+    # Global variables (DO NOT change the vars' names)
     url = "https://chrome.google.com/webstore/search/" + searchTerm + "?_category=extensions"
     
     # Open a web browser with the given url
@@ -430,7 +479,9 @@ if __name__ == '__main__':
     print("Step 2. Extract all addons' names and links")
     
     addonTb = extract_addonList(driver)
-    addonTb['extension_page'] = 'Chrome'
+    addonTb['search_term'] = searchTerm
+    addonTb['platform'] = 'Chrome'
+    
     fileOut = 'output/' + searchTerm + '_Chrome_addonList.csv'
     addonTb.to_csv(fileOut, index=False, encoding='utf-8')
     driver.quit() # Close browser, no longer need to use selenium
@@ -442,7 +493,6 @@ if __name__ == '__main__':
     print('Step 3. Go to each extension page, extract their information')
     
     addonInfoTb = extract_allAddonInfo(addonTb)
-    addonInfoTb['extension_page'] = 'Chrome'
     print('Verified:', verify(addonTb, addonInfoTb))
     
     fileOut = 'output/' + searchTerm + '_Chrome_addonInfo.csv'
