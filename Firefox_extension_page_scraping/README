@@ -14,7 +14,7 @@ python Firefox_extensions.py slide
 python Firefox_extensions.py mp3
 python Firefox_extensions.py news
 
-2. Make test_ext.sh runable then run it
+2. Run the test
 
 Make the test_ext.sh runable
 $ chmod +x test_ext.sh

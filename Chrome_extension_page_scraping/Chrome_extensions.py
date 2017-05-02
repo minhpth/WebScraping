@@ -283,7 +283,10 @@ def extract_authorName(addonSoup):
     """
     
     try:
-        authorName = addonSoup.find('a', attrs={'class':'e-f-y'}).text.strip()
+        if addonSoup.find('a', attrs={'class':'e-f-y'}) is not None:
+            authorName = addonSoup.find('a', attrs={'class':'e-f-y'}).text.strip()
+        else:
+            authorName = re.sub('offered by', '', addonSoup.find('span', attrs={'class':'e-f-Me'}).text).strip()
         return authorName
     except:
         return None
@@ -341,7 +344,7 @@ def extract_addonInfo(addonName, addonURL, searchRank):
         if avgRating is None: is_error = True # All addons have this field
                                      
         authorName = extract_authorName(addonSoup) # Auther's name
-        #if authorName is None: is_error = True # Some addons may not have this field
+        if authorName is None: is_error = True # All addons have this field
                                        
         authorHomepage = extract_authorHomepage(addonSoup) # Author's webpage
         #if authorHomepage is None: is_error = True # Some addons may not have this field
@@ -493,7 +496,7 @@ if __name__ == '__main__':
     # Open a web browser with the given url
     driver = web.Firefox()
     driver.set_window_position(0, 0) # Move windows to the top-left corner
-    driver.set_window_size(600, 400) # Resize Firefox windows
+    driver.set_window_size(600, 400) # Resize Firefox windows       
     driver.get(url)
     
     # Wait a bit for the page to load (find the first addon item block)
