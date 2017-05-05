@@ -48,6 +48,7 @@ import pandas as pd
 
 # Web scraping packages
 from bs4 import BeautifulSoup # Web scraping
+from urllib import quote_plus # URL encode
 import urllib2
 from urllib2 import urlopen # Download link
 
@@ -93,7 +94,7 @@ def urlopen_wrapper(url, num_retry=5, delay=10):
     update_errorLog('FAILED_OPENING_URL' + ' | ' + url) # Add to log
     return None
 
-def BeautifulSoup_wrapper(url, num_retry=5, delay=10):
+def BeautifulSoup_wrapper(url, parser_type='lxml', num_retry=5, delay=10):
     """
     This function will try several times to extract the HTML structure of the page
     """
@@ -102,7 +103,7 @@ def BeautifulSoup_wrapper(url, num_retry=5, delay=10):
     while count_retry < num_retry:
         try:
             page = urlopen_wrapper(url) # Try to open the page
-            soup = BeautifulSoup(page, "html.parser") # Parse the page
+            soup = BeautifulSoup(page, parser_type) # Parse the page
             return soup # If no error, end function
             
         except:
@@ -448,7 +449,7 @@ if __name__ == '__main__':
     if not os.path.exists('log'): os.makedirs('log')
     if not os.path.exists('output'): os.makedirs('output')
     
-    # Search term identify. In the future, this can be upgraded to automatic create a url text
+    # Search term identify
     searchTerm = sys.argv[1] # 'youtube'
     print('Extension search term:', searchTerm)
     
@@ -463,7 +464,7 @@ if __name__ == '__main__':
     Firefox_searchURL = "https://addons.mozilla.org/en-US/firefox/search/?q="
     
     # Try to open the page and extract the HTML structure
-    url = Firefox_searchURL + searchTerm
+    url = Firefox_searchURL + quote_plus(searchTerm)
     soup = BeautifulSoup_wrapper(url)
     
     #--------------------------------------------------------------------------
