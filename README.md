@@ -6,6 +6,8 @@ Following is the list of those projects:
 1. Dashboard Scraping (Python 2.7, selenium, BeautifulSoup, jQuery)
 2. Firefox Extension Page Scraping (Python 2.7, BeautifulSoup)
 3. Chrome Extension Page Scraping (Python 2.7, selenium, BeautifulSoup)
+4. Indeed.fr Jobs Scraping (Python 2.7, BeautifulSoup)
+5. TripAdvisor Tourism Locations Scraping (Python 2.7, selenium, BeautifulSoup, PhantomJS)
 
 Environment info:
 1. Ubuntu 16.04 LTS (64-bit)
