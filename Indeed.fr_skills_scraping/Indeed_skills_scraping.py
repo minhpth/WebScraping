@@ -336,7 +336,7 @@ def extract_allJobsInfo(allJobsTb):
 if __name__ == '__main__':
     
     # Change path to working directory
-    #os.chdir('/home/minh/Python/WebScraping/Indeed_skills_scraping')
+    #os.chdir('/home/minh/Python/WebScraping/Indeed.fr_skills_scraping')
     
     # Check log and outut folder exist in current folder
     if not os.path.exists('log'): os.makedirs('log')

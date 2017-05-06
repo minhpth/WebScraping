@@ -1,0 +1,11 @@
+#!/bin/sh
+python TripAdvisor_scraping.py "Ha Noi, Viet Nam"
+python TripAdvisor_scraping.py "Ho Chi Minh City, Viet Nam"
+python TripAdvisor_scraping.py "Hue, Vietnam"
+python TripAdvisor_scraping.py "Paris"
+python TripAdvisor_scraping.py "France"
+python TripAdvisor_scraping.py "Nice, France"
+python TripAdvisor_scraping.py "London"
+python TripAdvisor_scraping.py "UK"
+python TripAdvisor_scraping.py "New York"
+python TripAdvisor_scraping.py "Belgium"

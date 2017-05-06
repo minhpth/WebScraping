@@ -497,7 +497,7 @@ if __name__ == '__main__':
     # Open a web browser with the given url
     driver = web.Firefox()
     driver.set_window_position(0, 0) # Move windows to the top-left corner
-    driver.set_window_size(600, 400) # Resize Firefox windows       
+    driver.set_window_size(600, 400) # Resize Firefox windows
     driver.get(url)
     
     # Wait a bit for the page to load (find the first addon item block)
