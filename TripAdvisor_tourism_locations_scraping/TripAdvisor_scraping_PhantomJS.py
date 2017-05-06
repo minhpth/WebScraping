@@ -9,7 +9,7 @@ Created on Fri May  5 17:59:25 2017
 """
 
 #------------------------------------------------------------------------------
-# TRIPADVISOR.COM TOURISM LOCATIONS SCRAPING
+# TRIPADVISOR.COM TOURISM LOCATIONS SCRAPING - PHANTOMJS
 #------------------------------------------------------------------------------
 
 """
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     
     # Search term identify
     searchTerm = sys.argv[1]
-    #searchTerm = 'UK'
+    #searchTerm = 'Paris'
     print('Location name:', searchTerm)
     
     #--------------------------------------------------------------------------
@@ -223,11 +223,11 @@ if __name__ == '__main__':
     TripAdvisor_url = 'https://www.tripadvisor.com'
     TripAdvisor_attractions = 'https://www.tripadvisor.com/Attractions'
     TripAdvisor_searchPage = 'https://www.tripadvisor.com/Search?redirect=true'
-    #driver = web.PhantomJS()
     
     while True: # Loop until get the right version of the page
-        driver = web.Firefox()
-        driver.set_window_position(0, 0) # Move windows to the top-left corner
+        #driver = web.Firefox()
+        driver = web.PhantomJS()
+        #driver.set_window_position(0, 0) # Move windows to the top-left corner
         driver.get(TripAdvisor_attractions)
         
         # Check if the page is old version or 2017 new version
@@ -267,7 +267,6 @@ if __name__ == '__main__':
     if curentURL[:len(TripAdvisor_searchPage)] == TripAdvisor_searchPage:
         print('ERROR. Cannot find city name. Program exits...')
         update_errorLog('CITY_NAME_NOT_FOUND' + ' | ' + searchTerm)
-        #driver.quit()
         sys.exit()
     
     # Get the first page URL to begin scraping tourism locations
@@ -313,6 +312,10 @@ Further researches:
     1. TripAdvisors is doing A/B testing on their site. Sometimes, the site you
     recieve is not the same version with the current one. How to detect?
     -> SOLUTION: Read the page source code and find out the differences.
+    
+Refs:
+    1. Install PhantomJS: http://stackoverflow.com/questions/36839635/how-to-update-phantomjs-1-9-8-to-phantomjs-2-1-1-on-ubuntu/36843608#36843608
+    Remove it first: sudo apt purge phantomjs
 """
 
 #------------------------------------------------------------------------------
